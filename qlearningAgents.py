@@ -227,22 +227,61 @@ class UCBQLearningAgent(QLearningAgent):
         self.N = util.Counter()  # num visits for s, a
         self.UCB = util.Counter()  # wuh..
         self.V = util.Counter()  # variance of rewards at s, a
-        self.min_r = 0  # minimum reward received in history
-        self.max_r = 0  # maximum reward received in history
-        self.damp = damp  # damping factor (`r` in paper)
-        self.UCB_const = 0.5  # `C'` in paper)
+        self.minReward = 0  # minimum reward received in history
+        self.maxReward = 0  # maximum reward received in history
+        self.damp = 0.5  # damping factor (`r` in paper)
+        self.UCBConst = 0.5  # `C'` in paper)
 
-    def updateRewardHistory(self, r):
-        if r == 0:
+    def updateRewardHistory(self, reward):
+        if reward == 0:
             return
-        self.max_r = max(r, self.max_r)
-        self.min_r = min(r, self.min_r)
+        self.maxReward = max(reward, self.maxReward)
+        self.minReward = min(reward, self.minReward)
+
+    def update(self, state, action, nextState, reward):
+        oldQ = self.getQValue(state, action)
+        oldV = self.V[(state, action, )]
+        sa = (state, action, )
+
+        # Update visit count
+        self.N[sa] = self.N[sa] + 1
+        newN = self.N[sa]
+
+        # Normalize reward to be between 0 and 1 + self.discount * 
+        self.updateRewardHistory(reward)
+        reward = 1. * (reward - self.minReward) / (self.maxReward - self.minReward)
+
+        # Update Q (to temporary value since we need the old Q to update V
+        nextActions = self.getLegalActions(nextState)
+        sample_return = reward + self.discount *   \
+                max([self.getQValue(nextState, nextAction)
+                for nextAction in nextActions])  \
+                if nextActions else reward
+        learning_rate = (1. - self.damp) / (1 - self.damp**newN)
+        newQ = oldQ + learning_rate * (sample_return - oldQ)
+        self.qvalues[sa] = newQ
+
+        # Update variance
+        V_numerator = (sum(self.damp**i * (oldV + oldQ)**2 for i in range(1, newN+1)) + sample_return**2)
+        V_denominator = sum(self.damp**i for i in range(1, newN+2))
+        self.V[sa] = V_numerator / V_denominator 
+
+        # Update UCB
+        actions = self.getLegalActions(state)
+        numVisitsToS = max(self.N[(state, x, )] for x in actions)  \
+                if actions else 0 
+        for currAction in actions:
+            sca = (state, currAction, )  # Shorthand since used a lot here
+            numVisitsToSA = max(1, self.N[sca])
+            C = min(1./4, self.V[sca] + self.UCBConst *
+                    math.sqrt(math.log(numVisitsToS)/numVisitsToSA))
+            self.UCB[sca] = self.getQValue(*sca) + math.sqrt(C * math.log(numVisitsToS)) / numVisitsToSA
+        
 
 class PacmanUCBQAgent(UCBQLearningAgent):
     "Exactly the same as QLearningAgent, but with different default parameters"
 
-    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0,
-            damp=0.5, **args):
+    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **args):
         """
         These default parameters can be changed from the pacman.py command line.
         For example, to change the exploration rate, try:
