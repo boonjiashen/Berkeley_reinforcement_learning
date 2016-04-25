@@ -219,3 +219,53 @@ class ApproximateQAgent(PacmanQAgent):
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
             pass
+
+class UCBQLearningAgent(QLearningAgent):
+
+    def __init__(self, **args):
+        QLearningAgent.__init__(self, **args)
+        self.N = util.Counter()  # num visits for s, a
+        self.UCB = util.Counter()  # wuh..
+        self.V = util.Counter()  # variance of rewards at s, a
+        self.min_r = 0  # minimum reward received in history
+        self.max_r = 0  # maximum reward received in history
+        self.damp = damp  # damping factor (`r` in paper)
+        self.UCB_const = 0.5  # `C'` in paper)
+
+    def updateRewardHistory(self, r):
+        if r == 0:
+            return
+        self.max_r = max(r, self.max_r)
+        self.min_r = min(r, self.min_r)
+
+class PacmanUCBQAgent(UCBQLearningAgent):
+    "Exactly the same as QLearningAgent, but with different default parameters"
+
+    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0,
+            damp=0.5, **args):
+        """
+        These default parameters can be changed from the pacman.py command line.
+        For example, to change the exploration rate, try:
+            python pacman.py -p PacmanQLearningAgent -a epsilon=0.1
+
+        alpha    - learning rate
+        epsilon  - exploration rate
+        gamma    - discount factor
+        numTraining - number of training episodes, i.e. no learning after these many episodes
+        """
+        args['epsilon'] = epsilon
+        args['gamma'] = gamma
+        args['alpha'] = alpha
+        args['numTraining'] = numTraining
+        self.index = 0  # This is always Pacman
+        UCBQLearningAgent.__init__(self, **args)
+
+    def getAction(self, state):
+        """
+        Simply calls the getAction method of QLearningAgent and then
+        informs parent of action for Pacman.  Do not change or remove this
+        method.
+        """
+        action = UCBQLearningAgent.getAction(self,state)
+        self.doAction(state,action)
+        return action
