@@ -6,14 +6,6 @@ import sys
 from qlearningAgents import QLearningAgent
 import gym
 
-# The world's simplest agent!
-class RandomAgent(object):
-    def __init__(self, action_space):
-        self.action_space = action_space
-
-    def act(self, observation, reward, done):
-        return self.action_space.sample()
-
 if __name__ == '__main__':
     # You can optionally set up the logger. Also fine to set the level
     # to logging.DEBUG or logging.WARN if you want to change the
@@ -37,10 +29,8 @@ if __name__ == '__main__':
     #outdir = '/tmp/random-agent-results'
     #env.monitor.start(outdir, force=True)
 
-    episode_count = 10000
-    successes = []
 
-    for i in xrange(episode_count):
+    def trainOneEpisode():
         state = env.reset()
         stateIsTerminal = False
 
@@ -51,10 +41,10 @@ if __name__ == '__main__':
             agent.update(state, action, nextState, reward)
             #env.render()
             state = nextState
-        else:
-            #print('End of episode %i, last reward = %i' % (i, reward))
-            sys.stdout.write('1' if reward > 0 else '0')
-            successes.append(reward > 0)
+
+        #print('End of episode %i, last reward = %i' % (i, reward))
+        sys.stdout.write('1' if reward > 0 else '0')
+        return reward > 0
 
     def testOneEpisode():
         "Turns off greediness and returns success/failure (true/false)"
@@ -66,9 +56,15 @@ if __name__ == '__main__':
             state, reward, stateIsTerminal, _ = env.step(action)
         return reward > 0
 
+    numTrainEpisodes = 10000
     numTestEpisodes = 1000
-    numSuccesses = sum(testOneEpisode() for _ in xrange(numTestEpisodes))
-    print("Test success rate = %.1f%%" % (100.*numSuccesses/numTestEpisodes))
+
+    trainSuccesses = [trainOneEpisode() for _ in xrange(numTrainEpisodes)]
+    testSuccessRate =  \
+            sum(testOneEpisode() for _ in xrange(numTestEpisodes)) / \
+            float(numTestEpisodes)
+
+    print("Test success rate = %.1f%%" % (100.* testSuccessRate))
 
     ## Dump result info to disk
     #env.monitor.close()
