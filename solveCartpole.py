@@ -1,28 +1,25 @@
 """Use Berkeley interface in Gym"""
 
+import qlearningAgents
+import featureExtractors 
+import util
+import gym
 import logging
 import os
 import sys
-import qlearningAgents
-import featureExtractors 
-import gym
+import itertools
 
-numTrainEpisodes = 100000
+numTrainEpisodes = 10000
 numTestEpisodes = 1000
 trainRender = False
-trainRender = True
+#trainRender = True
 testRender = True
 
-if __name__ == '__main__':
-    # You can optionally set up the logger. Also fine to set the level
-    # to logging.DEBUG or logging.WARN if you want to change the
-    # amount of outut.
-    #logger = logging.getLogger()
-    #logger.setLevel(logging.INFO)
+def castEnvStateToTuple(env):
+    """Casts an environment's state to tuple.
 
-    env = gym.make('CartPole-v0')
-
-    # Change state to be a tuple, not NumPy Array
+    Affects reset and step methods
+    """
     oldStep = env.step
     oldReset = env.reset
     def newStep(*args, **kwargs):
@@ -33,21 +30,61 @@ if __name__ == '__main__':
     env.step = newStep
     env.reset = newReset
 
+class StateActionConcatenator(featureExtractors.FeatureExtractor):
+    """Feature is the state and action concatenated.
+
+    Assumes both state and action are numeric values,
+    state is an iterable and action is a scalar
+    """
+    def getFeatures(self, state, action):
+        # 1 is the bias term
+        elements = itertools.chain(state, [action, 1])
+        feats = util.Counter(enumerate(elements))
+        return feats
+
+class TwoDegPolynomial(featureExtractors.FeatureExtractor):
+    def getFeatures(self, state, action):
+        deg2Polynomials = (
+                x * y
+                for x, y in itertools.combinations_with_replacement(state, 2)
+                )  # deg 2 polynomial
+        iterators = (
+                state,  # deg 1 polynomial
+                deg2Polynomials,  # deg 2 polynomial
+                [action],
+                [1],  # bias term
+                )
+        elements = itertools.chain(*iterators)
+        feats = util.Counter(enumerate(elements))
+        return feats
+
+
+if __name__ == '__main__':
+    # You can optionally set up the logger. Also fine to set the level
+    # to logging.DEBUG or logging.WARN if you want to change the
+    # amount of outut.
+    #logger = logging.getLogger()
+    #logger.setLevel(logging.INFO)
+
+    env = gym.make('CartPole-v0')
+    castEnvStateToTuple(env)
+
     #env = gym.make('Acrobot-v0')
     kwargs = {
             'epsilon': 0.05,
             'gamma': 0.8,
             'alpha': 0.2,
             }
-    agent = qlearningAgents.QLearningAgent(**kwargs)
+    agent = qlearningAgents.ApproximateQAgent(**kwargs)
     agent.getLegalActions = lambda x: range(env.action_space.n)
+    #agent.featExtractor = StateActionConcatenator()
+    agent.featExtractor = TwoDegPolynomial()
 
     # You provide the directory to write to (can be an existing
     # directory, but can't contain previous monitor results. You can
     # also dump to a tempdir if you'd like: tempfile.mkdtemp().
     #outdir = '/tmp/random-agent-results'
     #env.monitor.start(outdir, force=True)
-
 
     def trainOneEpisode():
         state = env.reset()
@@ -60,7 +97,7 @@ if __name__ == '__main__':
             agent.update(state, action, nextState, reward)
             if trainRender: env.render()
             state = nextState
-            sys.stdout.write('\r%s' % (str(state)))
+            #sys.stdout.write('\r%s' % (str(state)))
             #print(state)
 
         #print('End of episode %i, last reward = %i' % (i, reward))
