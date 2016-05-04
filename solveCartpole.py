@@ -8,15 +8,16 @@ import logging
 import os
 import sys
 import itertools
+import random
 
-numTrainEpisodes = 10000
-numTestEpisodes = 1000
+numTrainEpisodes = 50000
+numTestEpisodes = 100
 trainRender = False
 #trainRender = True
 testRender = True
 
-def castEnvStateToTuple(env):
-    """Casts an environment's state to tuple.
+def transformEnvState(env, transform):
+    """Transform an environment's state.
 
     Affects reset and step methods
     """
@@ -24,11 +25,12 @@ def castEnvStateToTuple(env):
     oldReset = env.reset
     def newStep(*args, **kwargs):
         state, action, done, info = oldStep(*args, **kwargs)
-        return tuple(state), action, done, info
+        return transform(state), action, done, info
     def newReset(*args, **kwargs):
-        return tuple(oldReset(*args, **kwargs))
+        return transform(oldReset(*args, **kwargs))
     env.step = newStep
     env.reset = newReset
+
 
 class StateActionConcatenator(featureExtractors.FeatureExtractor):
     """Feature is the state and action concatenated.
@@ -36,18 +38,27 @@ class StateActionConcatenator(featureExtractors.FeatureExtractor):
     Assumes both state and action are numeric values,
     state is an iterable and action is a scalar
     """
+
+    def __init__(self, bias=True):
+        self.bias = bias
+
     def getFeatures(self, state, action):
-        # 1 is the bias term
-        elements = itertools.chain(state, [action, 1])
+        iterators = (
+                state,  # deg 1 polynomial
+                [action],
+                [1] if self.bias else [],  # bias term
+                )
+        elements = itertools.chain(*iterators)
         feats = util.Counter(enumerate(elements))
         return feats
 
+def getDeg2Polynomials(elements):
+    return (x * y
+            for x, y in itertools.combinations_with_replacement(elements, 2)
+            )  # deg 2 polynomial
+
 class TwoDegPolynomial(featureExtractors.FeatureExtractor):
     def getFeatures(self, state, action):
-        deg2Polynomials = (
-                x * y
-                for x, y in itertools.combinations_with_replacement(state, 2)
-                )  # deg 2 polynomial
         iterators = (
                 state,  # deg 1 polynomial
                 deg2Polynomials,  # deg 2 polynomial
@@ -67,18 +78,20 @@ if __name__ == '__main__':
     #logger.setLevel(logging.INFO)
 
     env = gym.make('CartPole-v0')
-    castEnvStateToTuple(env)
+    transformEnvState(env, lambda x: tuple(x))
 
     #env = gym.make('Acrobot-v0')
     kwargs = {
-            'epsilon': 0.05,
-            'gamma': 0.8,
-            'alpha': 0.2,
+            'epsilon': 0.0,
+            'gamma': 0.5,
+            'alpha': 0.05,
             }
     agent = qlearningAgents.ApproximateQAgent(**kwargs)
     agent.getLegalActions = lambda x: range(env.action_space.n)
-    #agent.featExtractor = StateActionConcatenator()
-    agent.featExtractor = TwoDegPolynomial()
+    agent.featExtractor = StateActionConcatenator(bias=True)
+    agent.weights = util.Counter(enumerate([100]*6))
+    #agent.featExtractor = TwoDegPolynomial()
+    print('epsilon = %f' % agent.epsilon)
 
     # You provide the directory to write to (can be an existing
     # directory, but can't contain previous monitor results. You can
@@ -92,13 +105,17 @@ if __name__ == '__main__':
 
         while not stateIsTerminal:
             action = agent.getAction(state)
+            #action = random.choice([0, 1])
+            actionValue = agent.getQValue(state, action)
+            #sys.stdout.write('\r%s, %i, %f, %s' % (str(state), action, actionValue, str(agent.weights)))
+            #sys.stdout.write('%i' % (action))
             #print(action)
             nextState, reward, stateIsTerminal, _ = env.step(action)
             agent.update(state, action, nextState, reward)
             if trainRender: env.render()
             state = nextState
-            #sys.stdout.write('\r%s' % (str(state)))
-            #print(state)
+            #sys.stdout.write(
+            #print(reward)
 
         #print('End of episode %i, last reward = %i' % (i, reward))
         #sys.stdout.write('1' if reward > 0 else '0')
@@ -111,6 +128,7 @@ if __name__ == '__main__':
 
         while not stateIsTerminal:
             action = agent.getPolicy(state)
+            sys.stdout.write(str(action))
             state, reward, stateIsTerminal, _ = env.step(action)
             if testRender: env.render()
         return reward > 0
