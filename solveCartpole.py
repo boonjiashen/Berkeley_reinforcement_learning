@@ -9,8 +9,9 @@ import os
 import sys
 import itertools
 import random
+import numpy as np
 
-numTrainEpisodes = 50000
+numTrainEpisodes = 1000
 numTestEpisodes = 100
 trainRender = False
 #trainRender = True
@@ -31,82 +32,43 @@ def transformEnvState(env, transform):
     env.step = newStep
     env.reset = newReset
 
+# Define environment
+env = gym.make('CartPole-v0')
+transformEnvState(env, lambda x: tuple(x))
 
-class StateActionConcatenator(featureExtractors.FeatureExtractor):
-    """Feature is the state and action concatenated.
-
-    Assumes both state and action are numeric values,
-    state is an iterable and action is a scalar
-    """
-
-    def __init__(self, bias=True):
-        self.bias = bias
-
-    def getFeatures(self, state, action):
-        iterators = (
-                state,  # deg 1 polynomial
-                [action],
-                [1] if self.bias else [],  # bias term
-                )
-        elements = itertools.chain(*iterators)
-        feats = util.Counter(enumerate(elements))
-        return feats
-
-def getDeg2Polynomials(elements):
-    return (x * y
-            for x, y in itertools.combinations_with_replacement(elements, 2)
-            )  # deg 2 polynomial
-
-class TwoDegPolynomial(featureExtractors.FeatureExtractor):
-    def getFeatures(self, state, action):
-        iterators = (
-                state,  # deg 1 polynomial
-                deg2Polynomials,  # deg 2 polynomial
-                [action],
-                [1],  # bias term
-                )
-        elements = itertools.chain(*iterators)
-        feats = util.Counter(enumerate(elements))
-        return feats
+# Define agent
+#env = gym.make('Acrobot-v0')
+kwargs = {
+        'epsilon': 0.01,
+        'gamma': 0.5,
+        'alpha': 0.5, 
+        }
+agent = qlearningAgents.ApproximateQAgent1QPerAction(
+        featureExtractors.StateToFeatures(bias=True),
+        **kwargs)
+agent.getLegalActions = lambda x: range(env.action_space.n)
+agent.weights[0] = util.Counter(enumerate([100]*5))
+agent.weights[1] = util.Counter(enumerate([100]*5))
+#agent.featExtractor = TwoDegPolynomial()
+print('epsilon = %f' % agent.epsilon)
 
 
 if __name__ == '__main__':
     # You can optionally set up the logger. Also fine to set the level
     # to logging.DEBUG or logging.WARN if you want to change the
     # amount of outut.
-    #logger = logging.getLogger()
-    #logger.setLevel(logging.INFO)
-
-    env = gym.make('CartPole-v0')
-    transformEnvState(env, lambda x: tuple(x))
-
-    #env = gym.make('Acrobot-v0')
-    kwargs = {
-            'epsilon': 0.0,
-            'gamma': 0.5,
-            'alpha': 0.05,
-            }
-    agent = qlearningAgents.ApproximateQAgent(**kwargs)
-    agent.getLegalActions = lambda x: range(env.action_space.n)
-    agent.featExtractor = StateActionConcatenator(bias=True)
-    agent.weights = util.Counter(enumerate([100]*6))
-    #agent.featExtractor = TwoDegPolynomial()
-    print('epsilon = %f' % agent.epsilon)
-
-    # You provide the directory to write to (can be an existing
-    # directory, but can't contain previous monitor results. You can
-    # also dump to a tempdir if you'd like: tempfile.mkdtemp().
-    #outdir = '/tmp/random-agent-results'
-    #env.monitor.start(outdir, force=True)
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
 
     def trainOneEpisode():
         state = env.reset()
         stateIsTerminal = False
+        sars = [state]
 
         while not stateIsTerminal:
-            action = agent.getAction(state)
-            #action = random.choice([0, 1])
-            actionValue = agent.getQValue(state, action)
+            #action = agent.getAction(state)
+            action = random.choice([0, 1])
+            #actionValue = agent.getQValue(state, action)
             #sys.stdout.write('\r%s, %i, %f, %s' % (str(state), action, actionValue, str(agent.weights)))
             #sys.stdout.write('%i' % (action))
             #print(action)
@@ -117,9 +79,11 @@ if __name__ == '__main__':
             #sys.stdout.write(
             #print(reward)
 
+            sars.extend([action, reward, nextState])
+
         #print('End of episode %i, last reward = %i' % (i, reward))
         #sys.stdout.write('1' if reward > 0 else '0')
-        return reward > 0
+        return sars
 
     def testOneEpisode():
         "Turns off greediness and returns success/failure (true/false)"
@@ -133,10 +97,20 @@ if __name__ == '__main__':
             if testRender: env.render()
         return reward > 0
 
+    outdir = '/tmp/random-agent-results'
+    env.monitor.start(outdir, force=True)
+
+    # Training phase
+    states = []
     for i in xrange(numTrainEpisodes):
-        trainSuccesses = trainOneEpisode() 
+        sars = trainOneEpisode() 
+        states.extend(sars[::3])
         if (i+1) % 10 == 0:
-            print('Completed %i training episodes' % (i+1))
+            logging.info('Completed %i training episodes' % (i+1))
+    states = np.vstack(states)
+    logging.info('Max of states = %s' % str(np.max(states, axis=0)))
+    logging.info('Min of states = %s' % str(np.min(states, axis=0)))
+
     testSuccessRate =  \
             sum(testOneEpisode() for _ in xrange(numTestEpisodes)) / \
             float(numTestEpisodes)
@@ -144,7 +118,7 @@ if __name__ == '__main__':
     print("Test success rate = %.1f%%" % (100.* testSuccessRate))
 
     ## Dump result info to disk
-    #env.monitor.close()
+    env.monitor.close()
 
     ## Upload to the scoreboard. We could also do this from another
     ## process if we wanted.

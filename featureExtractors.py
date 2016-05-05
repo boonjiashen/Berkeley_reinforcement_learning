@@ -16,6 +16,7 @@
 
 from game import Directions, Actions
 import util
+import itertools
 
 class FeatureExtractor:
     def getFeatures(self, state, action):
@@ -101,3 +102,54 @@ class SimpleExtractor(FeatureExtractor):
             features["closest-food"] = float(dist) / (walls.width * walls.height)
         features.divideAll(10.0)
         return features
+
+class StateToFeatures():
+    "Feature extractor that only takes a state, not (s, a)"
+
+    def __init__(self, bias=True):
+        self.bias = bias
+    def getFeatures(self, state):
+        iterators = (
+                state,  # deg 1 polynomial
+                [1] if self.bias else [],  # bias term
+                )
+        elements = itertools.chain(*iterators)
+        feats = util.Counter(enumerate(elements))
+        return feats
+
+class StateActionConcatenator(FeatureExtractor):
+    """Feature is the state and action concatenated.
+
+    Assumes both state and action are numeric values,
+    state is an iterable and action is a scalar
+    """
+
+    def __init__(self, bias=True):
+        self.bias = bias
+
+    def getFeatures(self, state, action):
+        iterators = (
+                state,  # deg 1 polynomial
+                [action],
+                [1] if self.bias else [],  # bias term
+                )
+        elements = itertools.chain(*iterators)
+        feats = util.Counter(enumerate(elements))
+        return feats
+
+def getDeg2Polynomials(elements):
+    return (x * y
+            for x, y in itertools.combinations_with_replacement(elements, 2)
+            )  # deg 2 polynomial
+
+class TwoDegPolynomial(FeatureExtractor):
+    def getFeatures(self, state, action):
+        iterators = (
+                state,  # deg 1 polynomial
+                deg2Polynomials,  # deg 2 polynomial
+                [action],
+                [1],  # bias term
+                )
+        elements = itertools.chain(*iterators)
+        feats = util.Counter(enumerate(elements))
+        return feats
