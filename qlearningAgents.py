@@ -17,6 +17,7 @@ from learningAgents import ReinforcementAgent
 from featureExtractors import *
 
 import random,util,math
+import collections
 
 class QLearningAgent(ReinforcementAgent):
     """
@@ -219,6 +220,50 @@ class ApproximateQAgent(PacmanQAgent):
             # you might want to print your weights here for debugging
             "*** YOUR CODE HERE ***"
             pass
+
+class ApproximateQAgent1QPerAction(PacmanQAgent):
+    """
+    Q(s,a) = w_a * f(s)
+
+    That is we have one set of weights for each action
+    """
+    def __init__(self, extractor, **args):
+        self.featExtractor = extractor
+        PacmanQAgent.__init__(self, **args)
+        self.weights = collections.defaultdict(util.Counter)
+
+    def getWeights(self, action):
+        return self.weights[action]
+
+    def getQValue(self, state, action):
+        """
+          Should return Q(state,action) = w * featureVector
+          where * is the dotProduct operator
+        """
+        qValue = self.featExtractor.getFeatures(state) * self.getWeights(action)
+        return qValue
+
+    def update(self, state, action, nextState, reward):
+        """
+           Should update your weights based on transition
+        """
+
+        oldQ = self.getQValue(state, action)
+        nextActions = self.getLegalActions(nextState)
+        if nextActions:
+            newQ = reward + self.discount *   \
+                    max([self.getQValue(nextState, nextAction)
+                    for nextAction in nextActions])
+        else:
+            newQ = reward
+        difference = newQ - oldQ
+        features = self.featExtractor.getFeatures(state)
+        #print 'features\n', features
+        #print 'weights\n', self.weights
+        currWeights = self.getWeights(action)
+        for key in features.keys():
+            currWeights[key] += self.alpha * difference * features[key]
+
 
 class UCBQLearningAgent(QLearningAgent):
 
