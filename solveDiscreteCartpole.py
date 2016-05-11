@@ -16,9 +16,9 @@ import featureExtractors
 import util
 import Experiment
 
-numTrainEpisodes = 5
-numEpisodesPerCheck = 2
-numPolicyChecks = 10
+numTrainEpisodes = 50000
+numEpisodesPerCheck = 100
+numPolicyChecks = 30
 trainRender = False
 #trainRender = True
 testRender = False
@@ -68,8 +68,8 @@ if __name__ == '__main__':
     #outdir = '/tmp/random-agent-results'
     #env.monitor.start(outdir, force=True)
 
-    learning_curve, xx = exp.run()
-    plt.plot(xx, learning_curve)
+    exp.run()
+    exp.plot()
     plt.show()
 
     # You can optionally set up the logger. Also fine to set the level

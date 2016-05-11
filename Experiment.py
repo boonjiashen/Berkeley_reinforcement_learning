@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import matplotlib.pyplot as plt
 
 class Experiment(object):
     """Inspired by RLPy's Experiment class
@@ -65,19 +66,27 @@ class Experiment(object):
         returns = []
         for i in range(self.numEpisodesPerCheck):
             returns.append(generateTotalReward())
-            logging.info('Tested %i episodes' % (i+1))
-        return np.mean(returns)
+            #logging.info('Tested %i episodes' % (i+1))
+        return np.mean(returns), np.std(returns)
 
     def run(self):
         #TODO check for correctness
         checkInds = np.linspace(0, self.numTrainEpisodes-1,
                 self.numPolicyChecks+1, dtype=int)
         checkInds = np.unique(checkInds)
-        learning_curve = []
+        data = []
         for i in range(self.numTrainEpisodes):
             self.trainOneEpisode()
-            logging.info('Completed %i training episodes' % (i+1))
             if i in checkInds:
-                learning_curve.append(self.check())
+                yy, ystd = self.check()
+                data.append((yy, ystd,))
+                logging.info("After %i episodes, estimation policy's average total reward = %f at stddev of %f" % (i+1, yy, ystd))
 
-        return learning_curve, checkInds
+        self.xx = checkInds 
+        self.yy, self.ystd = zip(*data)
+
+    def plot(self):
+        assert(hasattr(self, 'xx'))
+        assert(hasattr(self, 'yy'))
+        assert(hasattr(self, 'ystd'))
+        plt.errorbar(self.xx, self.yy, yerr=self.ystd)
