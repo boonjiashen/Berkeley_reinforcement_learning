@@ -131,6 +131,11 @@ class QLearningAgent(ReinforcementAgent):
     def getValue(self, state):
         return self.computeValueFromQValues(state)
 
+    # Define some synonyms which make more technical sense
+    behaviorPolicy = getAction
+    estimationPolicy = getPolicy
+
+
 
 class PacmanQAgent(QLearningAgent):
     "Exactly the same as QLearningAgent, but with different default parameters"
