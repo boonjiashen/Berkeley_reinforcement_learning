@@ -11,31 +11,25 @@ import itertools
 import random
 import numpy as np
 import MultiDimGrid
+import gymUtil
+import matplotlib.pyplot as plt
 
-numTrainEpisodes = 10000
+numTrainEpisodes = 500
 numTestEpisodes = 10
 trainRender = False
 #trainRender = True
-testRender = True
-
-def transformEnvState(env, transform):
-    """Transform an environment's state.
-
-    Affects reset and step methods
-    """
-    oldStep = env.step
-    oldReset = env.reset
-    def newStep(*args, **kwargs):
-        state, action, done, info = oldStep(*args, **kwargs)
-        return transform(state), action, done, info
-    def newReset(*args, **kwargs):
-        return transform(oldReset(*args, **kwargs))
-    env.step = newStep
-    env.reset = newReset
+testRender = False
 
 # Define environment
 env = gym.make('CartPole-v0')
-transformEnvState(env, lambda x: tuple(x))
+gymUtil.insertRewardAccumulator(env)
+lims = (0.866, 2.55, .26, 3.2) # Define grid to discretize state space
+#lims = (1.5, 2.55, .26, 3.2)
+num_intervals = 10
+ndgrid = MultiDimGrid.MultiDimGrid(
+        [MultiDimGrid.SingleDimGrid(high=lim, low=-lim, num_intervals=num_intervals)
+        for lim in lims])
+gymUtil.transformEnvState(env, lambda x: ndgrid.discretize(x))
 
 # Define agent
 #env = gym.make('Acrobot-v0')
@@ -55,17 +49,9 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    # Define grid to discretize state space
-    lims = (0.866, 2.55, .26, 3.2)
-    #lims = (1.5, 2.55, .26, 3.2)
-    num_intervals = 10
-    ndgrid = MultiDimGrid.MultiDimGrid(
-            [MultiDimGrid.SingleDimGrid(high=lim, low=-lim, num_intervals=num_intervals)
-            for lim in lims])
     #def tmp(x):
         #a, b, c, d = ndgrid.discretize(x)
         #return b, c, d
-    transformEnvState(env, ndgrid.discretize)
 
     def trainOneEpisode():
         state = env.reset()
@@ -90,6 +76,7 @@ if __name__ == '__main__':
 
         #print('End of episode %i, last reward = %i' % (i, reward))
         #sys.stdout.write('1' if reward > 0 else '0')
+        #print env.total_reward_since_reset
         return sars
 
     def testOneEpisode():
@@ -108,8 +95,11 @@ if __name__ == '__main__':
     #env.monitor.start(outdir, force=True)
 
     # Training phase
+    learning_curve = []
     for i in xrange(numTrainEpisodes):
-        trainOneEpisode() 
+        sars = trainOneEpisode() 
+        undiscounted_return = sum(sars[2::3])
+        learning_curve.append(undiscounted_return)
         if (i+1) % 10 == 0:
             logging.info('Completed %i training episodes' % (i+1))
 
@@ -134,3 +124,12 @@ if __name__ == '__main__':
     ## process if we wanted.
     #logger.info("Successfully ran RandomAgent. Now trying to upload results to the scoreboard. If it breaks, you can always just try re-uploading the same results.")
     #gym.upload(outdir, algorithm_id='random')
+
+    # Plot stuff
+    def mean(items):
+        return float(sum(items)) / len(items)
+    smoothed = [mean(chunk) for chunk in util.chunks_of_size_n(iter(learning_curve), 100)]
+    #plt.plot(learning_curve)
+    plt.plot(smoothed)
+
+    plt.show()
