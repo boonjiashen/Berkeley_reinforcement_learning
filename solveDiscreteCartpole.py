@@ -16,9 +16,14 @@ import featureExtractors
 import util
 import Experiment
 
-numTrainEpisodes = 50000
-numEpisodesPerCheck = 100
+numTrainEpisodes = 500
+numEpisodesPerCheck = 2
 numPolicyChecks = 30
+
+numTrainEpisodes = 500
+numEpisodesPerCheck = 10
+numPolicyChecks = 30
+
 trainRender = False
 #trainRender = True
 testRender = False
@@ -63,6 +68,15 @@ if __name__ == '__main__':
 
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
+
+    # Set info messages to file
+    fh = logging.FileHandler('/tmp/recent.txt')
+    fh.setLevel(logging.INFO)
+    sh = logger.handlers[0]
+    fh.format = sh.format  # set format of file handler to be same as stream
+                           # handler so that we have date/time information as
+                           # well
+    logger.addHandler(fh)
 
     exp = make_experiment()
     #outdir = '/tmp/random-agent-results'
