@@ -677,7 +677,21 @@ if __name__ == '__main__':
     > python pacman.py --help
     """
     args = readCommand( sys.argv[1:] ) # Get game components based on input
-    runGames( **args )
+    games = runGames( **args )
+
+    import Experiment
+    import matplotlib.pyplot as plt
+    def plot(xx, yy, ystd):
+        "Stupid wrapper for Experiment.plot"
+        exp = Experiment.Experiment(*[None]*5)
+        exp.xx = xx
+        exp.yy = yy
+        exp.ystd = ystd
+        exp.plot()
+    tracker = games[0].agents[0].performanceTracker
+    xx = [(i+1) * tracker.interval for i in range(len(tracker.means))]
+    plot(xx, tracker.means, tracker.stddevs)
+    plt.show()
 
     # import cProfile
     # cProfile.run("runGames( **args )")
