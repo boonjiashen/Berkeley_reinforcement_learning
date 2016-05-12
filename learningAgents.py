@@ -15,6 +15,31 @@
 from game import Directions, Agent, Actions
 
 import random,util,time
+import numpy as np
+
+class PerformanceTracker(object):
+    """Simple book keeper that takes in performance over episodes to track the
+    mean and stddev of performance over time
+
+    mean and stddev are calculated every `interval` number of
+    episodes, e.g., if interval=10, we get the mean and stddev of episodes 1 to
+    10, then of 11 to 20, etc.
+    """
+
+    def __init__(self, interval=100):
+        self.interval = interval
+        self.means = []   # appended every time we get `interval` no. of performances
+        self.stddevs = []
+        self.performances = []
+
+    def append(self, performance):
+        self.performances.append(performance)
+
+        if len(self.performances) == self.interval:
+            self.means.append(np.mean(self.performances))
+            self.stddevs.append(np.std(self.performances))
+            self.performances = []
+
 
 class ValueEstimationAgent(Agent):
     """
@@ -226,6 +251,8 @@ class ReinforcementAgent(ValueEstimationAgent):
         self.observeTransition(self.lastState, self.lastAction, state, deltaReward)
         self.stopEpisode()
 
+        NUM_EPS_UPDATE = 100
+
         # Make sure we have this var
         if not 'episodeStartTime' in self.__dict__:
             self.episodeStartTime = time.time()
@@ -233,7 +260,11 @@ class ReinforcementAgent(ValueEstimationAgent):
             self.lastWindowAccumRewards = 0.0
         self.lastWindowAccumRewards += state.getScore()
 
-        NUM_EPS_UPDATE = 100
+        # Track performance of agent
+        if not 'performanceTracker' in self.__dict__:
+            self.performanceTracker = PerformanceTracker(interval=NUM_EPS_UPDATE)
+        self.performanceTracker.append(state.getScore())
+
         if self.episodesSoFar % NUM_EPS_UPDATE == 0:
             print 'Reinforcement Learning Status:'
             windowAvg = self.lastWindowAccumRewards / float(NUM_EPS_UPDATE)
