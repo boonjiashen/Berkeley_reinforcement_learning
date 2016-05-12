@@ -89,4 +89,7 @@ class Experiment(object):
         assert(hasattr(self, 'xx'))
         assert(hasattr(self, 'yy'))
         assert(hasattr(self, 'ystd'))
-        plt.errorbar(self.xx, self.yy, yerr=self.ystd)
+        plt.errorbar(self.xx, self.yy, yerr=self.ystd, fmt='o-')
+        plt.title('Average return of estimation policy over training')
+        plt.ylabel('Average return of estimation policy')
+        plt.xlabel('Number of training episodes')
