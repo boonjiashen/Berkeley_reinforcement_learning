@@ -270,6 +270,8 @@ class ApproximateQAgent1QPerAction(PacmanQAgent):
             currWeights[key] += self.alpha * difference * features[key]
 
 
+NEGINF = -float('inf')
+
 class UCBQLearningAgent(QLearningAgent):
 
     def __init__(self, **args):
@@ -281,6 +283,36 @@ class UCBQLearningAgent(QLearningAgent):
         self.maxReward = 0  # maximum reward received in history
         self.damp = 0.5  # damping factor (`r` in paper)
         self.UCBConst = 0.5  # `C'` in paper)
+
+
+    def computeActionFromUCB(self, state):
+        """Compute argmax_a UCB(s, a)
+
+        If there are no legal actions, which is the case at the terminal state,
+        you should return None.
+        """
+        actions = self.getLegalActions(state)
+        if not actions:
+            return None
+        def key(action):
+            if (state, action) not in self.UCB:
+                return NEGINF
+            else:
+                return self.UCB[(state, action, )]
+        return max(actions, key=key)
+
+
+    def getAction(self, state):
+        """Behavior policy is epsilon greedy UCB
+        """
+        # Pick Action
+        legalActions = self.getLegalActions(state)
+        takeRandomAction = util.flipCoin(self.epsilon)
+        if not legalActions:
+            return None
+        if takeRandomAction:
+            return random.choice(legalActions)
+        return self.computeActionFromUCB(state)
 
     def updateRewardHistory(self, reward):
         if reward == 0:
@@ -312,7 +344,7 @@ class UCBQLearningAgent(QLearningAgent):
         self.qvalues[sa] = newQ
 
         # Update variance
-        V_numerator = (sum(self.damp**i * (oldV + oldQ)**2 for i in range(1, newN+1)) + sample_return**2)
+        V_numerator = (sum(self.damp**i * (oldV + oldQ**2) for i in range(1, newN+1)) + sample_return**2)
         V_denominator = sum(self.damp**i for i in range(1, newN+2))
         self.V[sa] = V_numerator / V_denominator 
 
