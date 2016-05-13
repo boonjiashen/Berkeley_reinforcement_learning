@@ -40,6 +40,16 @@ class PerformanceTracker(object):
             self.stddevs.append(np.std(self.performances))
             self.performances = []
 
+    def getIntervalEndpoints(self):
+        """Returns a list of episode indices where the interval ends
+        (and the bookkeeper can do an update). e.g. if interval is 100,
+        this returns 100, 200, 300, etc, since bookkeeping can be done at
+        the 100th episode, etc (1-indexed, not 0-indexed
+        """
+
+        xx = [(i+1) * self.interval for i in range(len(self.means))]
+        return xx
+
 
 class ValueEstimationAgent(Agent):
     """
