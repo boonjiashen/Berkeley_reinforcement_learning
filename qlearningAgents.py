@@ -274,15 +274,20 @@ NEGINF = -float('inf')
 
 class UCBQLearningAgent(QLearningAgent):
 
-    def __init__(self, **args):
-        QLearningAgent.__init__(self, **args)
+    def __init__(self, damp, UCBConst, **kwargs):
+    #def __init__(self, **kwargs):
+        QLearningAgent.__init__(self, **kwargs)
         self.N = util.Counter()  # num visits for s, a
         self.UCB = util.Counter()  # wuh..
         self.V = util.Counter()  # variance of rewards at s, a
         self.minReward = 0  # minimum reward received in history
         self.maxReward = 0  # maximum reward received in history
-        self.damp = 0.5  # damping factor (`r` in paper)
-        self.UCBConst = 0.5  # `C'` in paper)
+        self.damp = damp  # damping factor (`r` in paper)
+        self.UCBConst = UCBConst  # `C'` in paper)
+
+        print('In UCBQ')
+        print('damp = %f' % self.damp)
+        print('UCBConst = %f' % self.UCBConst)
 
 
     def computeActionFromUCB(self, state):
@@ -363,7 +368,8 @@ class UCBQLearningAgent(QLearningAgent):
 class PacmanUCBQAgent(UCBQLearningAgent):
     "Exactly the same as QLearningAgent, but with different default parameters"
 
-    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, numTraining=0, **args):
+    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2,
+            numTraining=0, damp=0.5, UCBConst=0.5, **args):
         """
         These default parameters can be changed from the pacman.py command line.
         For example, to change the exploration rate, try:
@@ -379,7 +385,7 @@ class PacmanUCBQAgent(UCBQLearningAgent):
         args['alpha'] = alpha
         args['numTraining'] = numTraining
         self.index = 0  # This is always Pacman
-        UCBQLearningAgent.__init__(self, **args)
+        UCBQLearningAgent.__init__(self, damp=float(damp), UCBConst=float(UCBConst), **args)
 
     def getAction(self, state):
         """
