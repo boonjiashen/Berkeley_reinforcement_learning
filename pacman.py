@@ -681,17 +681,15 @@ if __name__ == '__main__':
 
     import Experiment
     import matplotlib.pyplot as plt
-    def plot(xx, yy, ystd):
-        "Stupid wrapper for Experiment.plot"
-        exp = Experiment.Experiment(*[None]*5)
-        exp.xx = xx
-        exp.yy = yy
-        exp.ystd = ystd
-        exp.plot()
     tracker = games[0].agents[0].performanceTracker
-    xx = [(i+1) * tracker.interval for i in range(len(tracker.means))]
-    plot(xx, tracker.means, tracker.stddevs)
+    kwargs = dict(zip(['xx', 'yy', 'ystd'],
+        [tracker.getIntervalEndpoints(), tracker.means, tracker.stddevs]))
+    Experiment.Experiment._plot(**kwargs)
     plt.show()
+
+    import pickle
+    with open('/tmp/recent.pkl', 'wb') as fid:
+        pickle.dump(kwargs, fid)
 
     # import cProfile
     # cProfile.run("runGames( **args )")
